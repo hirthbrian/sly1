@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# macOS installs its dependencies with Homebrew rather than apt, so hand off to
+# the platform-specific script and leave the Debian path below untouched.
+if [ "$(uname -s)" = "Darwin" ]; then
+	exec "$(dirname "$0")/quickstart_macos.sh" "$@"
+fi
+
 ### Install Dependencies ###
 
 PACKAGES="binutils-mips-linux-gnu ninja-build python3 python3-pip python3-venv"
@@ -76,7 +82,7 @@ pip install -q -U -r requirements.txt
 ### Download ProDG compilers and runtimes ###
 
 echo "Starting ProDG setup script..."
-./scripts/setup_prodg_linux.sh
+./scripts/setup_prodg.sh
 
 ## Extract ELF ###
 

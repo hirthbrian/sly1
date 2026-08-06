@@ -15,6 +15,8 @@ report.json
 prodg*
 tools/cc/
 tools/wibo-i686
+tools/wibo-x86_64
+tools/wibo-macos
 usr/
 
 # Splat

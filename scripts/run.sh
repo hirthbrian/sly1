@@ -44,6 +44,19 @@ find_pcsx2() {
         return 0
     fi
 
+    # Check macOS application bundles. Invoke the inner executable directly;
+    # `open -a` would not pass the -elf/-nogui arguments through.
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        local app
+        for app in "/Applications/PCSX2.app" "$HOME/Applications/PCSX2.app" \
+                   "$PROJECT_DIR/tools/PCSX2.app"; do
+            if [[ -x "$app/Contents/MacOS/PCSX2" ]]; then
+                printf '%q' "$app/Contents/MacOS/PCSX2"
+                return 0
+            fi
+        done
+    fi
+
     # Check flatpak
     if command -v flatpak &>/dev/null && flatpak list --app 2>/dev/null | grep -q "net.pcsx2.PCSX2"; then
         printf "flatpak run net.pcsx2.PCSX2"
@@ -80,6 +93,7 @@ PCSX2=$(find_pcsx2)
 if [[ -z "$PCSX2" ]]; then
     echo "Error: PCSX2 not found. Install it via:" >&2
     echo "  - System package manager (pcsx2)" >&2
+    echo "  - macOS: install PCSX2.app to /Applications" >&2
     echo "  - Flatpak: flatpak install net.pcsx2.PCSX2" >&2
     echo "  - Download AppImage to $PROJECT_DIR/tools/" >&2
     exit 1

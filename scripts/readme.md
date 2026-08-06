@@ -8,11 +8,17 @@ This directory contains the following scripts used to setup and build the projec
 
 Installs the necessary dependencies using pip/apt and sets up the build environment. This will run all the other setup scripts for you. You only need to run this script once.
 
-### setup_prodg_linux.sh
+On macOS this script hands off to `quickstart_macos.sh`, so `quickstart.sh` remains the single entry point on every platform.
 
-Installs the compiler needed to build the project on Linux. `quickstart.sh` will run this script for you, so you don't need to run both.
+### quickstart_macos.sh
 
-There is an equivalent script for Windows, but the assembler does not work on Windows, so you can't build the project on Windows. You must use Linux or WSL.
+The macOS equivalent of `quickstart.sh`, using Homebrew instead of apt and `wibo-macos` instead of Wine. It checks that Rosetta 2 is available, since the compiler is a 32-bit Windows binary. You don't need to run this directly; `quickstart.sh` will do it for you.
+
+### setup_prodg.sh
+
+Installs the compiler needed to build the project. `quickstart.sh` will run this script for you, so you don't need to run both. `setup_prodg_linux.sh` remains as an alias for this script.
+
+There is an equivalent script for Windows, but the assembler does not work on Windows, so you can't build the project there. You must use Linux, macOS, or WSL.
 
 ## Utility scripts
 
@@ -30,6 +36,7 @@ Runs the last successful build in an emulator. Before using, you must install PC
 
 PCSX2 will be auto detected in this order:
 * System PATH
+* `PCSX2.app` in `/Applications`, `~/Applications`, or the `tools` directory (macOS)
 * Flatpak
 * AppImage in the `tools` directory with "pcsx2" in the file name
 * XDG Desktop entry with "pcsx2" in the file name

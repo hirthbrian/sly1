@@ -37,14 +37,38 @@ COMMON_COMPILE_FLAGS = (
     f"-x c++ -B{TOOLS_DIR}/cc/lib/gcc-lib/ee/2.95.2/ -O2 -G0 -ffast-math"
 )
 
-WIBO = TOOLS_DIR / "wibo-i686"
-WINECMD = f"{WIBO}" if WIBO.exists() else "WINEDEBUG=-all wine"
+# Cross binutils prefix. Debian: binutils-mips-linux-gnu.
+# macOS: brew install mips-linux-gnu-binutils.
+CROSS = os.environ.get("CROSS", "mips-linux-gnu-")
 
-COMPILE_CMD = f"{CC_DIR}/ee-gcc.exe -c {COMMON_INCLUDES} {COMMON_COMPILE_FLAGS} $in"
-if sys.platform == "linux":
-    COMPILE_CMD = (
-        f"{WINECMD} {CC_DIR}/ee-gcc.exe -c {COMMON_INCLUDES} {COMMON_COMPILE_FLAGS} $in"
-    )
+# Preprocessor for the split assembly. Apple's cpp is a clang driver that
+# defaults to C mode and rejects '#' line comments, so ask for assembly mode.
+CPP = os.environ.get(
+    "CPP", "cc -E -x assembler-with-cpp" if sys.platform == "darwin" else "cpp"
+)
+
+# Win32 emulator used to run the ProDG compiler, which is a 32-bit PE binary.
+WIBO_NAMES = {"darwin": "wibo-macos", "linux": "wibo-i686"}
+
+
+def find_emulator() -> str:
+    """
+    Return the command prefix used to run Windows binaries, or an empty string
+    on Windows where the compiler runs natively.
+    """
+    if os.environ.get("WIBO"):
+        return os.environ["WIBO"]
+    if sys.platform == "win32":
+        return ""
+    wibo = TOOLS_DIR / WIBO_NAMES.get(sys.platform, "wibo-i686")
+    return f"{wibo}" if wibo.exists() else "WINEDEBUG=-all wine"
+
+
+WINECMD = find_emulator()
+
+COMPILE_CMD = (
+    f"{WINECMD} {CC_DIR}/ee-gcc.exe -c {COMMON_INCLUDES} {COMMON_COMPILE_FLAGS} $in"
+).lstrip()
 
 CATEGORY_MAP = {
     "P2": "Engine",
@@ -97,7 +121,7 @@ def write_permuter_settings():
     with open("permuter_settings.toml", "w", encoding="utf-8") as f:
         f.write(
             f"""compiler_command = "{COMPILE_CMD} -D__GNUC__"
-assembler_command = "mips-linux-gnu-as -march=r5900 -mabi=eabi -Iinclude"
+assembler_command = "{CROSS}as -march=r5900 -mabi=eabi -Iinclude"
 compiler_type = "gcc"
 
 [preserve_macros]
@@ -212,14 +236,14 @@ def generate_ninja_build(
         ninja = ninja_syntax.Writer(f, width=9999)
 
         # MARK: Rules
-        cross = "mips-linux-gnu-"
+        cross = CROSS
 
         ld_args = "-EL -T config/undefined_syms_auto.txt -T config/undefined_funcs_auto.txt -Map $mapfile -T $in -o $out --no-warn-rwx-segments"
 
         ninja.rule(
             "as",
             description="as $in",
-            command=f"cpp {COMMON_INCLUDES} $in -o  - | {cross}as -no-pad-sections -EL -march=5900 -mabi=eabi -Iinclude -o $out",
+            command=f"{CPP} {COMMON_INCLUDES} $in -o  - | {cross}as -no-pad-sections -EL -march=5900 -mabi=eabi -Iinclude -o $out",
         )
 
         ninja.rule(

@@ -53,9 +53,11 @@ New contributors are welcome to make a pull request! If you would like to help b
 
 ## ⚡ Quickstart
 
-You can quickly setup the project on Debian-based systems such as Ubuntu (or WSL) using the quickstart script. Follow these three steps to get started:
+You can quickly setup the project on Debian-based systems such as Ubuntu (or WSL) and on macOS using the quickstart script. It detects your platform and installs dependencies with apt or Homebrew accordingly. Follow these three steps to get started:
 
 > **NOTE:** You can follow along on other distros by using the [Distrobox Guide](./docs/DISTROBOX.md) to set up a Debian container.
+
+> **NOTE:** On macOS the compiler runs through Rosetta 2, which Apple Silicon Macs do not install by default. If you don't have it, run `softwareupdate --install-rosetta --agree-to-license`.
 
 ### 1. Clone the repo
 
@@ -100,9 +102,9 @@ If you have any issues, or you prefer to set up the project manually, follow the
 
 ## ⚙️ Manual Setup
 
-The project can be built on Linux (or Windows using WSL). Follow the instructions below to set up the build environment.
+The project can be built on Linux, macOS, or Windows using WSL. Follow the instructions below to set up the build environment.
 
-> **Note:** These instructions assume a Debian-based system such as Ubuntu. For other distributions, adapt the package manager commands and package names accordingly.
+> **Note:** These instructions assume a Debian-based system such as Ubuntu. For other distributions, adapt the package manager commands and package names accordingly. macOS equivalents are given alongside each step.
 
 ### 1. Clone the repository
 
@@ -123,6 +125,12 @@ Install Python 3.9 or higher, pip and venv:
 
 ```bash
 sudo apt install python3 python3-pip python3-venv
+```
+
+On macOS, Python 3 is available through Homebrew:
+
+```bash
+brew install python3
 ```
 
 Create a Python environment for the project:
@@ -161,10 +169,23 @@ Install Ninja build system:
 sudo apt install ninja-build
 ```
 
+On macOS, install the assembler and Ninja with Homebrew:
+
+```bash
+brew install ninja mips-linux-gnu-binutils
+```
+
+Wine is not used on macOS. Download [`wibo-macos`](https://github.com/decompals/wibo/releases/) to the `tools` directory instead, and make it executable:
+
+```bash
+curl -fsSL -o tools/wibo-macos https://github.com/decompals/wibo/releases/download/1.0.0/wibo-macos
+chmod +x tools/wibo-macos
+```
+
 Setup the compiler using the provided script:
 
 ```bash
-./scripts/setup_prodg_linux.sh
+./scripts/setup_prodg.sh
 ```
 
 ### 5. Configure and build the project
@@ -185,6 +206,12 @@ You can alter the behavior by passing any of the following arguments to  `config
 * `--skip-checksum` - Skip the checksum verification step. This is necessary if you are intentionally changing the code, but note that the elf may not boot.
 * `--objects` - Builds the object files for matching with objdiff and generates an objdiff config file. Outputs two sets of object files: `obj/target` and `obj/current` (the latter of which will be updated automatically by objdiff as you edit the source code).
 
+The toolchain is detected automatically per platform. You can override any part of it with these environment variables, which is useful if your tools are installed under different names:
+
+* `CROSS` - Prefix for the MIPS binutils (default `mips-linux-gnu-`).
+* `WIBO` - Command used to run the Windows compiler (defaults to `tools/wibo-i686` on Linux, `tools/wibo-macos` on macOS, falling back to Wine).
+* `CPP` - Preprocessor used for the split assembly (defaults to `cpp`, or `cc -E -x assembler-with-cpp` on macOS).
+
 ## 🎮 Running the Game
 
 Running the compiled executable requires [PCSX2 2.0](https://pcsx2.net/). You must have your own copy of the original game and the BIOS from your own PS2. They are not included in this repo and we cannot provide them for you.
@@ -193,7 +220,7 @@ Once you have those, and you have built the executable `SCUS_971.98`, you can ru
 
 ### Method 1: Autorun script
 
-The `run.sh` script in the `scripts` directory will run the last successful build in the PCSX2 emulator. It will automatically detect PCSX2 installed via package manager, Flatpak, AppImage, or XDG Desktop entries in that order and use the first ISO found in the `disc` directory to load assets.
+The `run.sh` script in the `scripts` directory will run the last successful build in the PCSX2 emulator. It will automatically detect PCSX2 installed via package manager, a macOS `PCSX2.app` bundle, Flatpak, AppImage, or XDG Desktop entries in that order and use the first ISO found in the `disc` directory to load assets.
 
 Optionally, you can specify what ISO file to use:
 

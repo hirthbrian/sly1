@@ -18,6 +18,11 @@ options:
   # Assembly options
   generate_asm_macros_files: False
   named_regs_for_c_funcs: False
+  # Emit numeric GPRs ($8) rather than o32 names ($t0). binutils >= ~2.47 reads
+  # -mabi=eabi as EABI64, where $t0-$t3 name different registers and $t4-$t7 do
+  # not exist, which silently miscompiles o32-named assembly. Numeric registers
+  # are unambiguous under every ABI and assemble to identical encodings.
+  mips_abi_gpr: numeric
   find_file_boundaries: False
   disasm_unknown: True
 

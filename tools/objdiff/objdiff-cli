@@ -1,1 +1,25 @@
-objdiff-cli-linux-x86_64
+#!/bin/sh
+# Dispatches to the objdiff-cli build for the current platform.
+# Keeps scripts/diff.sh and scripts/checks.sh platform-agnostic.
+set -e
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+case "$(uname -s)/$(uname -m)" in
+    Linux/x86_64)              bin=objdiff-cli-linux-x86_64 ;;
+    Linux/aarch64|Linux/arm64) bin=objdiff-cli-linux-aarch64 ;;
+    Darwin/arm64)              bin=objdiff-cli-macos-arm64 ;;
+    Darwin/x86_64)             bin=objdiff-cli-macos-x86_64 ;;
+    *)
+        echo "objdiff-cli: unsupported platform $(uname -s)/$(uname -m)" >&2
+        exit 1
+        ;;
+esac
+
+if [ ! -x "$dir/$bin" ]; then
+    echo "objdiff-cli: missing $dir/$bin" >&2
+    echo "Download it from https://github.com/encounter/objdiff/releases/tag/v3.2.1" >&2
+    exit 1
+fi
+
+exec "$dir/$bin" "$@"
