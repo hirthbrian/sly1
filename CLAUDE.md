@@ -22,6 +22,8 @@ No original game code or assets live in this repo. The original ELF must be supp
 ./scripts/quickstart.sh          # one-time setup (Debian/Ubuntu or macOS): deps, venv, compiler
 ./scripts/build.sh               # clean reconfigure + ninja + checksum verify
 ./scripts/checks.sh              # what CI runs; must pass before a PR merges
+./scripts/checks.sh --report     # same, but also writes report.json (gitignored)
+python3 scripts/check_progress.py # print Engine/Splice match percentages from report.json
 ./scripts/diff.sh FuncName [Obj] # objdiff a single function against the original
 ./scripts/run.sh [game.iso]      # boot the built ELF in PCSX2
 ```
@@ -30,7 +32,8 @@ Underneath, `python3 configure.py` runs splat (splits the ELF into `asm/`, `asse
 
 - `--clean` / `--clean-only` — remove `asm/ assets/ obj/ out/ build.ninja` etc.
 - `--skip-checksum` — for intentional non-matching changes (the ELF may not boot).
-- `--objects` — build `obj/target` and `obj/current` (the latter with `-DSKIP_ASM`) and emit `objdiff.json` for objdiff.
+- `--objects` — build `obj/target` and `obj/current` (the latter with `-DSKIP_ASM`) and emit `objdiff.json` for objdiff. Note the two trees name symbols differently: `obj/target` takes the name from the `.s` (mangled only if `symbol_addrs.txt` says so), while `obj/current` always carries the C++-mangled name.
+- A bare `--objects` will **not** repair a stale `asm/` tree — splat caches the split in `.splache` (`0 split, 161 cached`) and the build then fails with `Can't open asm/nonmatchings/...` for symbols that *are* present in `symbol_addrs.txt`. Use `configure.py --clean --objects` (which is why `checks.sh` always passes `--clean`).
 
 ## The matching workflow
 
@@ -54,6 +57,10 @@ Names in `symbol_addrs.txt` and in `diff.sh` arguments are **mangled** (`OnDiffi
 **Never create a new `.c` file by hand.** New translation units are made by changing a split in `config/sly1.yaml` from `asm` to `c` and re-running `configure.py`, which generates the file with its `INCLUDE_ASM` stubs. `config/readme.md` explains the split format.
 
 Common failures: `undefined reference` → wrong/missing `symbol_addrs.txt` entry or signature mismatch; `checksum failed` → the change does not match; `ninja: no work to do` from `diff.sh` → wrong function name.
+
+**`diff.sh` does not work without a TTY.** `objdiff-cli diff` is a TUI and dies with `Failed: Device not configured (os error 6)` in a non-interactive session. Use `./scripts/checks.sh --report` (or `objdiff-cli report generate` directly) instead — it is non-interactive and takes ~1.5s for all 285 units, but it reports `fuzzy_match_percent` **per unit, not per function**, and has no flag to break it down further. For a single function, disassemble it out of both object trees (`objdump -dr --disassemble=<sym>` on `obj/target/x.o` vs `obj/current/x.o`); `.claude/skills/match-function/scripts/fndiff.sh` does this, including the symbol-name bridging the two trees need. Separately, `configure.py` emits no depfiles, so **ninja does not rebuild an object when only a header changed** — it reports `ninja: no work to do` and you diff stale objects. After editing anything in `include/`, `touch` the affected sources before building. Between them these can make a correct fix look like it did nothing. `./scripts/build.sh` (the sha1 gate) works fine either way and stays the final word.
+
+**m2c and decomp-permuter are anticipated by the build but not installed.** `include_asm.h` defines `M2CTX` and `PERMUTER` modes, and `configure.py` writes a `permuter_settings.toml` on every configure — but neither tool is vendored, submoduled, or in `requirements.txt`. Don't assume they are available; setting either up is an open task, not an existing workflow. (The generated toml's `[decompme.compilers]` key also points at a stale `tools/build/cc/gcc/gcc`; the real compiler is `tools/cc/bin/ee-gcc.exe`.)
 
 [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) also documents **decomp.me** as the alternative to objdiff, used mainly to collaborate or ask for help: preset `PS2 > Sly Cooper and the Thievius Raccoonus`, "Diff label" = the mangled name (must match the `glabel` in the `.s`), "Target assembly" = the raw `.s` contents, "Context" = the structs/typedefs/prototypes the function needs, and `-g3` under Options → Debug information to see source line numbers. A function that matches on decomp.me but fails locally is a toolchain discrepancy — report it rather than reshaping the C around it.
 
